@@ -19,6 +19,7 @@ frontend/coverage
 .env.production.local
 .env
 *.sqlite
+backend/src/data
 
 
 npm-debug.log*

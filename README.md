@@ -28,6 +28,8 @@ cd Giving-Guide
 ```bash
 cd backend
 cp .env.example .env
+chmod +x helper/db
+./helper/db create
 npm install
 npm run dev
 ```
