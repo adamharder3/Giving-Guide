@@ -8,3 +8,10 @@ CREATE TABLE IF NOT EXISTS charities (
   filename TEXT,
   last_updated TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+);

@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const session = require('express-session')
+const bcrypt = require('bcryptjs')
 
 const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database(process.env.DATABASE_URL || './src/data/database.sqlite3');
@@ -8,6 +10,13 @@ const db = new sqlite3.Database(process.env.DATABASE_URL || './src/data/database
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'supersecretkey',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false }
+}));
 
 app.get('/api/charities', (req, res) => {
     const query = "SELECT * FROM charities"
@@ -22,6 +31,49 @@ app.get('/api/charities', (req, res) => {
         }))
         return res.json(charities)
     })
+});
+
+app.post('/api/register', (req,res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({error: 'Username and password required'})
+    }
+
+    const hashed_pw = bcrypt.hashSync(password, 10);
+    const query = "INSERT INTO users (username, password) VALUES (?, ?)"
+    db.run(query, [username, hashed_pw], (err) => {
+        if (err) {
+            if (err.message.includes('UNIQUE')) {
+                return res.status(400).json({error: 'Username already taken'})
+            }
+            return res.status(500).json({error: 'Database error'})
+        }
+        req.session.username = username
+        return res.status(201).json({ message: 'User registered successfully', username });
+    });
+})
+
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password required' });
+  }
+
+  const query = 'SELECT * FROM users WHERE username = ?'
+  db.get(query, [username], (err, user) => {
+    if (err) return res.status(500).json({ error: 'Database error' });
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const valid = bcrypt.compareSync(password, user.password);
+    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+
+    req.session.username = user.username;
+    res.json({ message: 'Login successful', username: user.username });
+  });
+});
+
+app.post('/api/logout', (req, res) => {
+  req.session.destroy(() => res.json({ message: 'Logged out successfully' }));
 });
 
 const PORT = process.env.PORT || 4000;

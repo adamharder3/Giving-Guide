@@ -69,7 +69,10 @@ case "$1" in
       exit 1
     fi
     set -x
+    echo CHARITIES
     sqlite3 -batch -line "${DB_FILE}" 'SELECT * FROM charities'
+    echo USERS
+    sqlite3 -batch -line "${DB_FILE}" 'SELECT * FROM users'
     set +x
     ;;
 esac
