@@ -9,6 +9,7 @@ import {
   useNavigate
 } from 'react-router-dom';
 
+// ---------------- Sample Data ----------------
 const sampleCharities = [
   {
     id: 1,
@@ -117,6 +118,7 @@ const FILTERS = [
   'Youth'
 ];
 
+// ---------------- TopBar ----------------
 function TopBar({ onSearch }) {
   const navigate = useNavigate();
 
@@ -145,6 +147,7 @@ function TopBar({ onSearch }) {
   );
 }
 
+// ---------------- SidebarFilters ----------------
 function SidebarFilters({ filters, active, toggle }) {
   return (
     <aside className="px-6 py-6">
@@ -166,6 +169,7 @@ function SidebarFilters({ filters, active, toggle }) {
   );
 }
 
+// ---------------- CharityCard ----------------
 function CharityCard({ charity, onToggleFavorite, isFavorite }) {
   return (
     <div className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
@@ -213,6 +217,7 @@ function CharityCard({ charity, onToggleFavorite, isFavorite }) {
   );
 }
 
+// ---------------- CharityDetail ----------------
 function CharityDetail() {
   const { id } = useParams();
   const charity = sampleCharities.find((c) => c.id === Number(id));
@@ -263,6 +268,7 @@ function CharityDetail() {
   );
 }
 
+// ---------------- Main Page ----------------
 function MainPage() {
   const [query, setQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState([]);
@@ -362,7 +368,7 @@ function MainPage() {
   );
 }
 
-// ✅ NEW LOGIN PAGE
+// ---------------- Login Page ----------------
 function LoginPage() {
   const navigate = useNavigate();
 
@@ -397,13 +403,74 @@ function LoginPage() {
           </button>
         </form>
         <p className="text-sm text-gray-500 text-center mt-4">
-          Don’t have an account? <span className="text-indigo-600 cursor-pointer">Sign up</span>
+          Don’t have an account?{' '}
+          <span
+            onClick={() => navigate('/signup')}
+            className="text-indigo-600 cursor-pointer hover:underline"
+          >
+            Sign up
+          </span>
         </p>
       </div>
     </div>
   );
 }
 
+// ---------------- Signup Page ----------------
+function SignUpPage() {
+  const navigate = useNavigate();
+
+  const handleSignUp = (e) => {
+    e.preventDefault();
+    alert('Account created! (demo only)');
+    navigate('/login');
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center h-[80vh]">
+      <div className="bg-white p-8 rounded-2xl shadow-md w-80">
+        <h2 className="text-2xl font-bold mb-4 text-center">Sign Up</h2>
+        <form onSubmit={handleSignUp} className="space-y-4">
+          <input
+            type="text"
+            placeholder="Full Name"
+            required
+            className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-300"
+          />
+          <input
+            type="email"
+            placeholder="Email"
+            required
+            className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-300"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            required
+            className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-300"
+          />
+          <button
+            type="submit"
+            className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition"
+          >
+            Create Account
+          </button>
+        </form>
+        <p className="text-sm text-gray-500 text-center mt-4">
+          Already have an account?{' '}
+          <span
+            onClick={() => navigate('/login')}
+            className="text-indigo-600 cursor-pointer hover:underline"
+          >
+            Log in
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ---------------- App ----------------
 export default function App() {
   const [query, setQuery] = useState('');
   return (
@@ -414,6 +481,7 @@ export default function App() {
           <Route path="/" element={<MainPage />} />
           <Route path="/charity/:id" element={<CharityDetail />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
         </Routes>
       </div>
     </Router>
