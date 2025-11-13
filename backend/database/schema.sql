@@ -15,3 +15,11 @@ CREATE TABLE IF NOT EXISTS users (
   password TEXT NOT NULL,
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS favorites (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL,
+  charity_id INTEGER NOT NULL,
+  FOREIGN KEY (username) REFERENCES users(username),
+  FOREIGN KEY (charity_id) REFERENCES charities(id)
+);

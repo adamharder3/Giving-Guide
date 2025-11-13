@@ -73,6 +73,8 @@ case "$1" in
     sqlite3 -batch -line "${DB_FILE}" 'SELECT * FROM charities'
     echo USERS
     sqlite3 -batch -line "${DB_FILE}" 'SELECT * FROM users'
+    echo FAVORITES
+    sqlite3 -batch -line "${DB_FILE}" 'SELECT * FROM favorites'
     set +x
     ;;
 esac
