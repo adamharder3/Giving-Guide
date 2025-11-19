@@ -1,8 +1,11 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const session = require('express-session')
-const bcrypt = require('bcryptjs')
+const session = require('express-session');
+const bcrypt = require('bcryptjs');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 
 const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database(process.env.DATABASE_URL || './src/data/database.sqlite3');
@@ -17,6 +20,18 @@ app.use(session({
   saveUninitialized: false,
   cookie: { secure: false }
 }));
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, (process.env.UPLOADS_PATH || "./src/data/uploads"));
+  },
+  filename: (req, file, cb) => {
+    cb(null, 'temp-' + Date.now() + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage });
+
 
 app.get('/api/charities', (req, res) => {
   const query = "SELECT * FROM charities"
@@ -38,14 +53,30 @@ app.post('/api/register', (req,res) => {
     return res.status(409).json({ error: "Already logged in. Please log out first" });
   }
 
-  const { username, password } = req.body;
+  let { username, password, role, secret } = req.body;
+
+  username = username?.trim();
+  password = password?.trim();
+
   if (!username || !password) {
     return res.status(400).json({error: 'Username and password required'})
   }
 
+  if (!role) {
+    return res.status(400).json({error: 'User role required'})
+  }
+
+  if (role !== "charity" && role !== "user") {
+    return res.status(400).json({error: 'Invalid role'})
+  }
+
+  if (role == "charity" && secret !== (process.env.CHARITY_REG_CODE || "CHARITY")) {
+    return res.status(403).json({error: 'Invalid authorization for charity account'})
+  }
+
   const hashed_pw = bcrypt.hashSync(password, 10);
-  const query = "INSERT INTO users (username, password) VALUES (?, ?)"
-  db.run(query, [username, hashed_pw], (err) => {
+  const query = "INSERT INTO users (username, password, role) VALUES (?, ?, ?)"
+  db.run(query, [username, hashed_pw, role], (err) => {
     if (err) {
       if (err.message.includes('UNIQUE')) {
         return res.status(400).json({error: 'Username already taken'})
@@ -53,7 +84,8 @@ app.post('/api/register', (req,res) => {
       return res.status(500).json({error: 'Internal server error'})
     }
     req.session.username = username
-    return res.status(201).json({ message: 'User registered successfully', username });
+    req.session.role = role
+    return res.status(201).json({ message: 'User registered successfully', username, role });
   });
 })
 
@@ -76,7 +108,8 @@ app.post('/api/login', (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
     req.session.username = user.username;
-    res.json({ message: 'Login successful', username: user.username });
+    req.session.role = user.role;
+    res.json({ message: 'Login successful', username: user.username, role: user.role });
   });
 });
 
@@ -84,9 +117,9 @@ app.post('/api/logout', (req, res) => {
   req.session.destroy(() => res.json({ message: 'Logged out successfully' }));
 });
 
-app.post('/api/session', (req, res) => {
+app.get('/api/session', (req, res) => {
   if (req.session.username) {
-    res.json({ loggedIn: true, username: req.session.username });
+    res.json({ loggedIn: true, username: req.session.username, role: req.session.role });
   }
   else {
     res.json({ loggedIn: false });
@@ -184,6 +217,64 @@ app.delete('/api/favorites/:charityId', (req, res) => {
     });
   });
 });
+
+app.post('/api/charities', upload.single('image'), (req, res) => {
+  if (!req.session.username)
+    return res.status(401).json({ error: 'Not logged in' });
+
+  if (req.session.role !== "charity")
+    return res.status(403).json({ error: 'Must be charity account' });
+
+  const { name, tags, description, website, location } = req.body;
+  const file = req.file;
+
+  if (!name) return res.status(400).json({ error: "Charity name is required" });
+  if (!tags) return res.status(400).json({ error: "Charity tags are required" });
+  if (!file) return res.status(400).json({ error: "Image file is required" });
+
+  let tagsArray = Array.from(new Set(tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)))
+  const tagJSON = JSON.stringify(tagsArray);
+
+  
+  const insertQuery = 'INSERT INTO charities (name, tags, description, website, location) VALUES (?, ?, ?, ?, ?)';
+  db.run(insertQuery, [name, tagJSON, description, website, location], function(err) {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+
+    const id = this.lastID;
+    const newFilename = `img${id}${path.extname(file.originalname)}`;
+    const newPath = path.join((process.env.UPLOADS_PATH || "./src/data/uploads"), newFilename);
+
+    fs.rename(file.path, newPath, (err) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Internal server error" });
+      }
+
+      const updateQuery = `UPDATE charities SET filename = ? WHERE id = ?`;
+      db.run(updateQuery, [newFilename, id], (err) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).json({ error: "Internal server error" });
+        }
+
+        return res.status(201).json({
+          message: "Charity created successfully",
+          id,
+          name,
+          tagsArray,
+          description,
+          website,
+          location,
+          filename: newFilename
+        });
+      });
+    });
+  });
+});
+
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
