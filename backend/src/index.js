@@ -11,14 +11,29 @@ const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database(process.env.DATABASE_URL || './src/data/database.sqlite3');
 
 const app = express();
-app.use(cors());
+
+// CORS configuration - allow credentials for session cookies
+app.use(cors({
+  origin: 'http://localhost:3000', // Your React app URL
+  credentials: true
+}));
+
 app.use(express.json());
+
+// Serve uploaded images statically
+app.use('/src/data/uploads', express.static(path.join(__dirname, 'data', 'uploads')));
+
+
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'supersecretkey',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false }
+  cookie: { 
+    secure: false, // Set to true if using HTTPS
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60 * 24 * 7 // 1 week
+  }
 }));
 
 const storage = multer.diskStorage({
@@ -264,7 +279,7 @@ app.post('/api/charities', upload.single('image'), (req, res) => {
           message: "Charity created successfully",
           id,
           name,
-          tagsArray,
+          tags: tagsArray,
           description,
           website,
           location,
@@ -278,4 +293,3 @@ app.post('/api/charities', upload.single('image'), (req, res) => {
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
-
